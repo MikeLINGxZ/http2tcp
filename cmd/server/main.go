@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/MikeLINGxZ/http2tcp"
-	"github.com/MikeLINGxZ/http2tcp/internal/server"
 	"github.com/spf13/viper"
 )
 
@@ -11,7 +10,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	serverHandler := server.NewServer(config)
+	serverHandler := http2tcp.NewServer(config)
 	err = serverHandler.Run()
 	if err != nil {
 		panic(err)

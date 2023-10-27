@@ -1,4 +1,4 @@
-package server
+package http2tcp
 
 type option struct {
 	auth    *string

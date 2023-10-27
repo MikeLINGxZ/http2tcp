@@ -2,7 +2,6 @@ package http2tcp
 
 import (
 	"context"
-	"github.com/MikeLINGxZ/http2tcp/internal/utils"
 	"github.com/gorilla/websocket"
 	"log"
 	"net"
@@ -15,7 +14,7 @@ type Connection struct {
 	wsConn    *websocket.Conn
 	tcpConn   net.Conn
 	isServer  bool
-	cancelCtx *utils.CancelAllContext
+	cancelCtx *CancelAllContext
 	wg        sync.WaitGroup
 	isClose   bool
 }
@@ -26,7 +25,7 @@ func NewConnection(id string, wsConn *websocket.Conn, tcpConn net.Conn, isServer
 		wsConn:    wsConn,
 		tcpConn:   tcpConn,
 		isServer:  isServer,
-		cancelCtx: utils.WithCancelAll(context.Background()),
+		cancelCtx: WithCancelAll(context.Background()),
 		wg:        sync.WaitGroup{},
 		isClose:   false,
 	}
@@ -152,7 +151,7 @@ func (c *Connection) keepPing() {
 		return
 	}
 	for {
-		time.Sleep(5)
+		time.Sleep(time.Second * 5)
 		select {
 		case <-done:
 			return

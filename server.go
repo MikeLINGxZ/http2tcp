@@ -1,10 +1,9 @@
-package server
+package http2tcp
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/MikeLINGxZ/http2tcp"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/rand"
@@ -17,10 +16,10 @@ const defaultPort = "8989"
 const defaultPath = "/"
 
 type Server struct {
-	config *http2tcp.ServerConfig
+	config *ServerConfig
 }
 
-func NewServer(config *http2tcp.ServerConfig) *Server {
+func NewServer(config *ServerConfig) *Server {
 	if config.Host == "" {
 		config.Host = defaultHost
 	}
@@ -34,10 +33,9 @@ func NewServer(config *http2tcp.ServerConfig) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Printf("[server] Run | server run on: %s , proxy path: %s", s.config.Host+":"+s.config.Port, s.config.Path)
+	log.Printf("[server] Run | server run on: %s ,proxy path: %s", s.config.Host+":"+s.config.Port, s.config.Path)
 	http.HandleFunc(s.config.Path, s.proxy)
 	return http.ListenAndServe(s.config.Host+":"+s.config.Port, nil)
-
 }
 
 func (s *Server) proxy(writer http.ResponseWriter, request *http.Request) {
@@ -61,7 +59,7 @@ func (s *Server) proxy(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	connection := http2tcp.NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, true)
+	connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, true)
 	go connection.Proxy()
 }
 
@@ -75,7 +73,7 @@ func (s *Server) getTcpConn(wsConn *websocket.Conn) (net.Conn, error) {
 		if msgType != websocket.TextMessage {
 			continue
 		}
-		var target http2tcp.Target
+		var target Target
 		err = json.Unmarshal(msgBytes, &target)
 		if err != nil {
 			return nil, err
