@@ -1,0 +1,7 @@
+WebsocketServer: ws://127.0.0.1:7889/proxy
+Auth: 123456
+Targets:
+  - LocalHost: 127.0.0.1
+    LocalPort: 13306
+    RemoteHost: 127.0.0.1
+    RemotePort: 3306
