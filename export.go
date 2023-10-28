@@ -1,30 +1,10 @@
 package http2tcp
 
-func ProxyForHttpHandler() {
+import "net/http"
 
-}
-
-func ProxyForGinHandler() {
-
-}
-
-type ServerConfig struct {
-	Host string
-	Port string
-	Path string
-	Auth string
-}
-
-type ClientConfig struct {
-	WebsocketServer string
-	Auth            string
-	Targets         []*Target
-}
-
-type Target struct {
-	LocalHost  string
-	LocalPort  string
-	RemoteHost string `json:"remote_host"`
-	RemotePort string `json:"remote_port"`
-	Auth       string `json:"auth"`
+func ProxyForHttpHandler(auth string) func(writer http.ResponseWriter, request *http.Request) {
+	s := NewServer(&ServerConfig{
+		Auth: auth,
+	})
+	return s.proxy
 }

@@ -9,6 +9,27 @@ import (
 	"sync"
 )
 
+type ServerConfig struct {
+	Host string
+	Port string
+	Path string
+	Auth string
+}
+
+type ClientConfig struct {
+	WebsocketServer string
+	Auth            string
+	Targets         []*Target
+}
+
+type Target struct {
+	LocalHost  string
+	LocalPort  string
+	RemoteHost string `json:"remote_host"`
+	RemotePort string `json:"remote_port"`
+	Auth       string `json:"auth"`
+}
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
