@@ -70,7 +70,7 @@ run client on your pc
 ```
 
 ## Effect
-### proxy tcp
-![img.png](img.png)
+### proxy tcpß
+![img.png](img.png) 
 ### proxy http
 ![img_1.png](img_1.png)
