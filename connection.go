@@ -10,13 +10,14 @@ import (
 )
 
 type Connection struct {
-	id        string
-	wsConn    *websocket.Conn
-	tcpConn   net.Conn
-	isServer  bool
-	cancelCtx *CancelAllContext
-	wg        sync.WaitGroup
-	isClose   bool
+	id         string
+	wsConn     *websocket.Conn
+	tcpConn    net.Conn
+	isServer   bool
+	cancelCtx  *CancelAllContext
+	wg         sync.WaitGroup
+	isClose    bool
+	lastActive time.Time
 }
 
 func NewConnection(id string, wsConn *websocket.Conn, tcpConn net.Conn, isServer bool) *Connection {
@@ -41,6 +42,7 @@ func (c *Connection) Proxy() {
 	if !c.isServer {
 		go c.keepPing()
 	}
+	go c.checkActive()
 	go c.http2tcp()
 	go c.tcp2http()
 
@@ -70,7 +72,7 @@ func (c *Connection) close() {
 func (c *Connection) http2tcp() {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	defer c.cancelCtx.CancelAll()
+	defer c.close()
 
 	done, err := c.cancelCtx.GetDoneCh()
 	if err != nil {
@@ -104,6 +106,7 @@ func (c *Connection) http2tcp() {
 				log.Printf("[connection] http2tcp | write tcp msg error: %s \n", err.Error())
 				return
 			}
+			c.lastActive = time.Now()
 		}
 	}
 }
@@ -111,7 +114,7 @@ func (c *Connection) http2tcp() {
 func (c *Connection) tcp2http() {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	defer c.cancelCtx.CancelAll()
+	defer c.close()
 
 	done, err := c.cancelCtx.GetDoneCh()
 	if err != nil {
@@ -136,6 +139,7 @@ func (c *Connection) tcp2http() {
 				log.Printf("[connection] tcp2http | write ws msg error: %s \n", err.Error())
 				return
 			}
+			c.lastActive = time.Now()
 		}
 	}
 }
@@ -143,7 +147,7 @@ func (c *Connection) tcp2http() {
 func (c *Connection) keepPing() {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	defer c.cancelCtx.CancelAll()
+	defer c.close()
 
 	done, err := c.cancelCtx.GetDoneCh()
 	if err != nil {
@@ -159,6 +163,32 @@ func (c *Connection) keepPing() {
 			err := c.wsConn.WriteMessage(websocket.PingMessage, []byte(""))
 			if err != nil {
 				log.Printf("[connection] keepPing | write ping msg error: %s \n", err.Error())
+				return
+			}
+		}
+	}
+}
+
+func (c *Connection) checkActive() {
+	c.wg.Add(1)
+	defer c.wg.Done()
+	defer c.close()
+
+	done, err := c.cancelCtx.GetDoneCh()
+	if err != nil {
+		log.Printf("[connection] keepPing | get done ch error: %s \n", err.Error())
+		return
+	}
+
+	for {
+		time.Sleep(time.Second * 15)
+		select {
+		case <-done:
+			return
+		default:
+			duration := time.Now().Sub(c.lastActive)
+			if duration >= time.Second*10 {
+				log.Printf("[connection] checkActive | idle for too long, end the connection \n")
 				return
 			}
 		}

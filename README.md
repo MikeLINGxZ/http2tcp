@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-    http.HandleFunc("/path",http2tcp.ProxyForHttpHandler)
+    http.HandleFunc("/path",http2tcp.ProxyForHttpHandler("your-password"))
 	http.ListenAndServe(":8080", nil)
 }
 ```
