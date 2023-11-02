@@ -59,7 +59,7 @@ func (s *Server) proxy(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, true)
+	connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, s.config.WaitTime, true)
 	go connection.Proxy()
 }
 

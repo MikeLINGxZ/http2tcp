@@ -60,7 +60,7 @@ func (c *Client) handlerProxy(proxy *proxy) {
 			log.Printf("[client] handlerProxy | get ws conn error: %s \n", err.Error())
 			continue
 		}
-		connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, false)
+		connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, c.config.WaitTime, false)
 		go connection.Proxy()
 	}
 }

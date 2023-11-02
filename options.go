@@ -1,11 +1,12 @@
 package http2tcp
 
 type option struct {
-	auth    *string
-	host    *string
-	port    *string
-	path    *string
-	maxConn *int
+	auth     *string
+	host     *string
+	port     *string
+	path     *string
+	maxConn  *int
+	waitTime int
 }
 
 func WithAuth(auth string) func(o *option) {

@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type websocketMsgChan struct {
+	msgType int
+	msg     []byte
+}
+
 type Connection struct {
 	id         string
 	wsConn     *websocket.Conn
@@ -18,17 +23,21 @@ type Connection struct {
 	wg         sync.WaitGroup
 	isClose    bool
 	lastActive time.Time
+	waitTime   time.Duration
+	wsWriterCh chan *websocketMsgChan
 }
 
-func NewConnection(id string, wsConn *websocket.Conn, tcpConn net.Conn, isServer bool) *Connection {
+func NewConnection(id string, wsConn *websocket.Conn, tcpConn net.Conn, waitTime int, isServer bool) *Connection {
 	return &Connection{
-		id:        id,
-		wsConn:    wsConn,
-		tcpConn:   tcpConn,
-		isServer:  isServer,
-		cancelCtx: WithCancelAll(context.Background()),
-		wg:        sync.WaitGroup{},
-		isClose:   false,
+		id:         id,
+		wsConn:     wsConn,
+		tcpConn:    tcpConn,
+		isServer:   isServer,
+		cancelCtx:  WithCancelAll(context.Background()),
+		wg:         sync.WaitGroup{},
+		isClose:    false,
+		waitTime:   time.Duration(waitTime) * time.Second,
+		wsWriterCh: make(chan *websocketMsgChan),
 	}
 }
 
@@ -42,7 +51,9 @@ func (c *Connection) Proxy() {
 	if !c.isServer {
 		go c.keepPing()
 	}
-	go c.checkActive()
+	if c.waitTime > time.Second*0 {
+		go c.checkActive()
+	}
 	go c.http2tcp()
 	go c.tcp2http()
 
@@ -58,6 +69,7 @@ func (c *Connection) close() {
 		return
 	}
 
+	close(c.wsWriterCh)
 	err := c.wsConn.Close()
 	if err != nil {
 		log.Printf("[connection] close | ws conn error: %s \n", err.Error())
@@ -91,11 +103,7 @@ func (c *Connection) http2tcp() {
 				return
 			}
 			if msgType == websocket.PingMessage {
-				err := c.wsConn.WriteMessage(websocket.PongMessage, []byte(""))
-				if err != nil {
-					log.Printf("[connection] http2tcp | write ws pong error: %s \n", err.Error())
-					return
-				}
+				c.writeWebsocketMsg(websocket.PongMessage, []byte(""))
 				continue
 			}
 			if msgType != websocket.BinaryMessage {
@@ -134,11 +142,7 @@ func (c *Connection) tcp2http() {
 				return
 			}
 			buf = buf[:n]
-			err = c.wsConn.WriteMessage(websocket.BinaryMessage, buf)
-			if err != nil {
-				log.Printf("[connection] tcp2http | write ws msg error: %s \n", err.Error())
-				return
-			}
+			c.writeWebsocketMsg(websocket.BinaryMessage, buf)
 			c.lastActive = time.Now()
 		}
 	}
@@ -160,9 +164,29 @@ func (c *Connection) keepPing() {
 		case <-done:
 			return
 		default:
-			err := c.wsConn.WriteMessage(websocket.PingMessage, []byte(""))
+			c.writeWebsocketMsg(websocket.PingMessage, []byte(""))
+		}
+	}
+}
+
+func (c *Connection) keepWsWrite() {
+	c.wg.Add(1)
+	defer c.wg.Done()
+	defer c.close()
+
+	done, err := c.cancelCtx.GetDoneCh()
+	if err != nil {
+		log.Printf("[connection] keepWsWrite | get done ch error: %s \n", err.Error())
+		return
+	}
+	for {
+		select {
+		case <-done:
+			return
+		case msg := <-c.wsWriterCh:
+			err := c.wsConn.WriteMessage(msg.msgType, msg.msg)
 			if err != nil {
-				log.Printf("[connection] keepPing | write ping msg error: %s \n", err.Error())
+				log.Printf("[connection] keepWsWrite | write ws msg error: %s \n", err.Error())
 				return
 			}
 		}
@@ -181,16 +205,23 @@ func (c *Connection) checkActive() {
 	}
 
 	for {
-		time.Sleep(time.Second * 15)
+		time.Sleep(time.Second * 10)
 		select {
 		case <-done:
 			return
 		default:
 			duration := time.Now().Sub(c.lastActive)
-			if duration >= time.Second*10 {
+			if duration > c.waitTime {
 				log.Printf("[connection] checkActive | idle for too long, end the connection \n")
 				return
 			}
 		}
+	}
+}
+
+func (c *Connection) writeWebsocketMsg(msgType int, msg []byte) {
+	c.wsWriterCh <- &websocketMsgChan{
+		msgType: msgType,
+		msg:     msg,
 	}
 }

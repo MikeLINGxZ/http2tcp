@@ -10,15 +10,17 @@ import (
 )
 
 type ServerConfig struct {
-	Host string
-	Port string
-	Path string
-	Auth string
+	Host     string
+	Port     string
+	Path     string
+	Auth     string
+	WaitTime int
 }
 
 type ClientConfig struct {
 	WebsocketServer string
 	Auth            string
+	WaitTime        int
 	Targets         []*Target
 }
 
