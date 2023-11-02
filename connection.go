@@ -37,7 +37,7 @@ func NewConnection(id string, wsConn *websocket.Conn, tcpConn net.Conn, waitTime
 		wg:         sync.WaitGroup{},
 		isClose:    false,
 		waitTime:   time.Duration(waitTime) * time.Second,
-		wsWriterCh: make(chan *websocketMsgChan),
+		wsWriterCh: make(chan *websocketMsgChan, 50),
 	}
 }
 
@@ -54,6 +54,7 @@ func (c *Connection) Proxy() {
 	if c.waitTime > time.Second*0 {
 		go c.checkActive()
 	}
+	go c.keepWsWrite()
 	go c.http2tcp()
 	go c.tcp2http()
 
