@@ -25,11 +25,12 @@ type ClientConfig struct {
 }
 
 type Target struct {
-	LocalHost  string
-	LocalPort  string
-	RemoteHost string `json:"remote_host"`
-	RemotePort string `json:"remote_port"`
-	Auth       string `json:"auth"`
+	LocalHost        string
+	LocalPort        string
+	RemoteHost       string `json:"remote_host"`
+	RemotePort       string `json:"remote_port"`
+	IsListenOnServer bool   `json:"is_listen_on_server"`
+	Auth             string `json:"auth"`
 }
 
 var upgrader = websocket.Upgrader{

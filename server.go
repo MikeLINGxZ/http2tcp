@@ -52,18 +52,35 @@ func (s *Server) proxy(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, err)
 		return
 	}
-	tcpConn, err := s.getTcpConn(wsConn)
+	target, err := s.getTcpConn(wsConn)
 	if err != nil {
 		wsConn.Close()
 		writeError(writer, err)
 		return
 	}
 
-	connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, tcpConn, s.config.WaitTime, true)
-	go connection.Proxy()
+	if target.IsListenOnServer {
+		//listen, err := net.Listen("tcp", target.RemoteHost+":"+target.RemotePort)
+		//if err != nil {
+		//	wsConn.Close()
+		//	writeError(writer, err)
+		//	return
+		//}
+		//
+	} else {
+		conn, err := net.Dial("tcp", target.RemoteHost+":"+target.RemoteHost)
+		if err != nil {
+			wsConn.Close()
+			writeError(writer, err)
+			return
+		}
+		connection := NewConnection(fmt.Sprintf("%d", rand.Int63()), wsConn, conn, s.config.WaitTime, true)
+		go connection.Proxy()
+	}
+
 }
 
-func (s *Server) getTcpConn(wsConn *websocket.Conn) (net.Conn, error) {
+func (s *Server) getTcpConn(wsConn *websocket.Conn) (*Target, error) {
 	retryTime := 3
 	for i := 0; i < retryTime; i++ {
 		msgType, msgBytes, err := wsConn.ReadMessage()
@@ -81,11 +98,9 @@ func (s *Server) getTcpConn(wsConn *websocket.Conn) (net.Conn, error) {
 		if target.Auth != s.config.Auth {
 			return nil, errors.New("auth not match")
 		}
-		tcpConn, err := net.Dial("tcp", target.RemoteHost+":"+target.RemotePort)
-		if err != nil {
-			return nil, err
-		}
-		return tcpConn, nil
+
+		return &target, nil
+
 	}
 	return nil, errors.New("[server] can not read target info after 3 times retry")
 }
